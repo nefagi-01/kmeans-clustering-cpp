@@ -134,15 +134,15 @@ private:
         int NearestClusterId;
         if(dimensions==1) {
             min_dist = abs(clusters[0].getCentroidByPos(0) - point.getVal(0));
-        }	
-        else 
+        }
+        else
         {
-          for (int i = 0; i < dimensions; i++)
-          {
-             sum += pow(clusters[0].getCentroidByPos(i) - point.getVal(i), 2.0);
-             // sum += abs(clusters[0].getCentroidByPos(i) - point.getVal(i));
-          }
-          min_dist = sqrt(sum);
+            for (int i = 0; i < dimensions; i++)
+            {
+                sum += pow(clusters[0].getCentroidByPos(i) - point.getVal(i), 2.0);
+                // sum += abs(clusters[0].getCentroidByPos(i) - point.getVal(i));
+            }
+            min_dist = sqrt(sum);
         }
         NearestClusterId = clusters[0].getId();
 
@@ -150,19 +150,19 @@ private:
         {
             double dist;
             sum = 0.0;
-            
-            if(dimensions==1) {
-                  dist = abs(clusters[i].getCentroidByPos(0) - point.getVal(0));
-            } 
-            else {
-              for (int j = 0; j < dimensions; j++)
-              {
-                  sum += pow(clusters[i].getCentroidByPos(j) - point.getVal(j), 2.0);
-                  // sum += abs(clusters[i].getCentroidByPos(j) - point.getVal(j));
-              }
 
-              dist = sqrt(sum);
-              // dist = sum;
+            if(dimensions==1) {
+                dist = abs(clusters[i].getCentroidByPos(0) - point.getVal(0));
+            }
+            else {
+                for (int j = 0; j < dimensions; j++)
+                {
+                    sum += pow(clusters[i].getCentroidByPos(j) - point.getVal(j), 2.0);
+                    // sum += abs(clusters[i].getCentroidByPos(j) - point.getVal(j));
+                }
+
+                dist = sqrt(sum);
+                // dist = sum;
             }
             if (dist < min_dist)
             {
@@ -180,6 +180,55 @@ public:
         this->K = K;
         this->iters = iterations;
         this->output_dir = output_dir;
+    }
+
+    void Assignment(vector<Point> &all_points, bool &done)
+    {
+        // Add all points to their nearest cluster
+        #pragma omp parallel for reduction(&&: done) num_threads(16)
+        for (int i = 0; i < total_points; i++)
+        {
+            int currentClusterId = all_points[i].getCluster();
+            int nearestClusterId = getNearestClusterId(all_points[i]);
+
+            if (currentClusterId != nearestClusterId)
+            {
+                all_points[i].setCluster(nearestClusterId);
+                done = false;
+            }
+        }
+
+        // clear all existing clusters
+        clearClusters();
+
+        // reassign points to their new clusters
+        for (int i = 0; i < total_points; i++)
+        {
+            // cluster index is ID-1
+            clusters[all_points[i].getCluster() - 1].addPoint(all_points[i]);
+        }
+    }
+
+    void Update()
+    {
+        for (int i = 0; i < K; i++)
+        {
+            int ClusterSize = clusters[i].getSize();
+
+            for (int j = 0; j < dimensions; j++)
+            {
+                double sum = 0.0;
+                if (ClusterSize > 0)
+                {
+                    #pragma omp parallel for reduction(+: sum) num_threads(16)
+                    for (int p = 0; p < ClusterSize; p++)
+                    {
+                        sum += clusters[i].getPoint(p).getVal(j);
+                    }
+                    clusters[i].setCentroidByPos(j, sum / ClusterSize);
+                }
+            }
+        }
     }
 
     void run(vector<Point> &all_points)
@@ -218,49 +267,11 @@ public:
             cout << "Iter - " << iter << "/" << iters << endl;
             bool done = true;
 
-            // Add all points to their nearest cluster
-            #pragma omp parallel for reduction(&&: done) num_threads(16)
-            for (int i = 0; i < total_points; i++)
-            {
-                int currentClusterId = all_points[i].getCluster();
-                int nearestClusterId = getNearestClusterId(all_points[i]);
-
-                if (currentClusterId != nearestClusterId)
-                {
-                    all_points[i].setCluster(nearestClusterId);
-                    done = false;
-                }
-            }
-
-            // clear all existing clusters
-            clearClusters();
-
-            // reassign points to their new clusters
-            for (int i = 0; i < total_points; i++)
-            {
-                // cluster index is ID-1
-                clusters[all_points[i].getCluster() - 1].addPoint(all_points[i]);
-            }
+            // Assigning points to clusters
+            Assignment(all_points, done);
 
             // Recalculating the center of each cluster
-            for (int i = 0; i < K; i++)
-            {
-                int ClusterSize = clusters[i].getSize();
-
-                for (int j = 0; j < dimensions; j++)
-                {
-                    double sum = 0.0;
-                    if (ClusterSize > 0)
-                    {
-                        #pragma omp parallel for reduction(+: sum) num_threads(16)
-                        for (int p = 0; p < ClusterSize; p++)
-                        {
-                            sum += clusters[i].getPoint(p).getVal(j);
-                        }
-                        clusters[i].setCentroidByPos(j, sum / ClusterSize);
-                    }
-                }
-            }
+            Update();
 
             if (done || iter >= iters)
             {
@@ -341,7 +352,7 @@ int main(int argc, char **argv)
         all_points.push_back(point);
         pointId++;
     }
-    
+
     infile.close();
     cout << "\nData fetched successfully!" << endl
          << endl;
