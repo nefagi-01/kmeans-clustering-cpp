@@ -113,6 +113,7 @@ void Cluster::setCentroidByPos(int pos, double val) { this->centroid[pos] = val;
 
 void KMeans::clearClusters()
 {
+  
     for (int i = 0; i < K; i++)
     {
         clusters[i].removeAllPoints();
@@ -181,20 +182,15 @@ KMeans::KMeans(int K, int iterations)
 
 void KMeans::Assignment(vector<Point> &all_points, bool &done)
 {
-    std::cout << "\t\tprint 1" << std::endl;
+    
     // Add all points to their nearest cluster
     #pragma omp parallel for reduction(&&: done) num_threads(16)
     for (int i = 0; i < total_points; i++)
     {
-        std::cout << "\tpoint n:" << i << std::endl;
-        std::cout << "\t\tprint 2" << std::endl;
         int currentClusterId = all_points[i].getCluster();
-        std::cout << "\t\tprint 3" << std::endl;
         int nearestClusterId = getNearestClusterId(all_points[i]);
-        std::cout << "\t\tprint 4" << std::endl;
         if (currentClusterId != nearestClusterId)
         {
-            std::cout << "\t\tprint 5" << std::endl;
             all_points[i].setCluster(nearestClusterId);
             done = false;
         }
@@ -202,7 +198,6 @@ void KMeans::Assignment(vector<Point> &all_points, bool &done)
 
     // clear all existing clusters
     clearClusters();
-
     // reassign points to their new clusters
     for (int i = 0; i < total_points; i++)
     {
@@ -236,9 +231,9 @@ void KMeans::Update()
 void KMeans::setClusters(vector<int> indices, vector<Point> &all_points) { 
     for(int i=0; i<indices.size(); i++) {
         // set cluster id for the sampled point
-        all_points[indices[i]].setCluster(i);
+        all_points[indices[i]].setCluster(i+1);
         // create a cluster with the sampled point
-        Cluster cluster(i, all_points[indices[i]]);
+        Cluster cluster(i+1, all_points[indices[i]]);
         // add the cluster to the list of clusters
         clusters.push_back(cluster);
     }
@@ -302,7 +297,6 @@ void KMeans::run(vector<Point> &all_points)
     {
         cout << "Iter - " << iter << "/" << iters << endl;
         bool done = true;
-
 
         cout << "\tAssigning points to clusters.." << endl;
         // Assigning points to clusters

@@ -175,9 +175,9 @@ KMeans::KMeans(int K, int iterations)
 void KMeans::setClusters(vector<int> indices, vector<Point> &all_points) { 
     for(int i=0; i<indices.size(); i++) {
         // set cluster id for the sampled point
-        all_points[indices[i]].setCluster(i);
+        all_points[indices[i]].setCluster(i+1);
         // create a cluster with the sampled point
-        Cluster cluster(i, all_points[indices[i]]);
+        Cluster cluster(i+1, all_points[indices[i]]);
         // add the cluster to the list of clusters
         clusters.push_back(cluster);
     }
@@ -298,37 +298,40 @@ void KMeans::run(vector<Point> &all_points)
         iter++;
     }
 
-    ofstream pointsFile;
-    pointsFile.open(output_dir + "/" + to_string(K) + "-points.txt", std::ios::out);
-
-    for (int i = 0; i < total_points; i++)
+    if (!output_dir.empty())
     {
-        pointsFile << all_points[i].getCluster() << endl;
-    }
+        ofstream pointsFile;
+        pointsFile.open(output_dir + "/" + to_string(K) + "-points.txt", std::ios::out);
 
-    pointsFile.close();
-
-    // Write cluster centers to file
-    ofstream outfile;
-    outfile.open(output_dir + "/" + to_string(K) + "-clusters.txt");
-    if (outfile.is_open())
-    {
-        for (int i = 0; i < K; i++)
+        for (int i = 0; i < total_points; i++)
         {
-            cout << "Cluster " << clusters[i].getId() << " centroid : ";
-            for (int j = 0; j < dimensions; j++)
-            {
-                cout << clusters[i].getCentroidByPos(j) << " ";    // Output to console
-                outfile << clusters[i].getCentroidByPos(j) << " "; // Output to file
-            }
-            cout << endl;
-            outfile << endl;
+            pointsFile << all_points[i].getCluster() << endl;
         }
-        outfile.close();
-    }
-    else
-    {
-        cout << "Error: Unable to write to clusters.txt";
+
+        pointsFile.close();
+
+        // Write cluster centers to file
+        ofstream outfile;
+        outfile.open(output_dir + "/" + to_string(K) + "-clusters.txt");
+        if (outfile.is_open())
+        {
+            for (int i = 0; i < K; i++)
+            {
+                cout << "Cluster " << clusters[i].getId() << " centroid : ";
+                for (int j = 0; j < dimensions; j++)
+                {
+                    cout << clusters[i].getCentroidByPos(j) << " ";    // Output to console
+                    outfile << clusters[i].getCentroidByPos(j) << " "; // Output to file
+                }
+                cout << endl;
+                outfile << endl;
+            }
+            outfile.close();
+        }
+        else
+        {
+            cout << "Error: Unable to write to clusters.txt";
+        }
     }
 }
 
