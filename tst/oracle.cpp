@@ -4,6 +4,8 @@
 #include <fstream>
 #include <iostream>
 #include <vector>
+#include <string>     // std::string, std::stod
+
 
 using namespace std;
 
@@ -117,6 +119,7 @@ class KMeans
 {
 private:
     int K, iters, dimensions, total_points;
+    vector<int> indices;
     vector<Cluster> clusters;
     string output_dir;
 
@@ -182,33 +185,76 @@ public:
         this->output_dir = output_dir;
     }
 
+    KMeans(int K, int iterations)
+    {
+        this->K = K;
+        this->iters = iterations;
+    }
+
+    void setClusters(vector<int> indices, vector<Point> &all_points) { 
+        for(int i=0; i<indices.size(); i++) {
+            // set cluster id for the sampled point
+            all_points[indices[i]].setCluster(i);
+            // create a cluster with the sampled point
+            Cluster cluster(i, all_points[indices[i]]);
+            // add the cluster to the list of clusters
+            clusters.push_back(cluster);
+        }
+    }
+
+    vector<int> getLabels(vector<Point> &all_points) {
+        vector<int> labels;
+        for(int i=0; i<all_points.size(); i++) {
+            labels.push_back(all_points[i].getCluster());
+        }
+        return labels;
+    }
+
+    vector<vector<double>> getCentroids() {
+        vector<vector<double>> centroids;
+        for(int i=0; i<clusters.size(); i++) {
+            vector<double> centroid;
+            for(int j=0; j<dimensions; j++) {
+                centroid.push_back(clusters[i].getCentroidByPos(j));
+            }
+            centroids.push_back(centroid);
+        }
+        return centroids;
+    }
+
+
+
     void run(vector<Point> &all_points)
     {
         total_points = all_points.size();
         dimensions = all_points[0].getDimensions();
 
-        // Initializing Clusters
-        vector<int> used_pointIds;
-
-        for (int i = 1; i <= K; i++)
+        if (indices.empty())
         {
-            while (true)
-            {
-                int index = rand() % total_points;
+            // Initializing Clusters
+            vector<int> used_pointIds;
 
-                if (find(used_pointIds.begin(), used_pointIds.end(), index) ==
-                    used_pointIds.end())
+            for (int i = 1; i <= K; i++)
+            {
+                while (true)
                 {
-                    used_pointIds.push_back(index);
-                    all_points[index].setCluster(i);
-                    Cluster cluster(i, all_points[index]);
-                    clusters.push_back(cluster);
-                    break;
+                    int index = rand() % total_points;
+
+                    if (find(used_pointIds.begin(), used_pointIds.end(), index) ==
+                        used_pointIds.end())
+                    {
+                        used_pointIds.push_back(index);
+                        all_points[index].setCluster(i);
+                        Cluster cluster(i, all_points[index]);
+                        clusters.push_back(cluster);
+                        break;
+                    }
                 }
             }
+            cout << "Clusters initialized = " << clusters.size() << endl
+                << endl;
         }
-        cout << "Clusters initialized = " << clusters.size() << endl
-             << endl;
+
 
         cout << "Running K-Means Clustering.." << endl;
 
@@ -306,7 +352,6 @@ public:
     }
 };
 
-int main(int argc, char **argv)
 {
     // Need 3 arguments (except filename) to run, else exit
     if (argc != 4)
