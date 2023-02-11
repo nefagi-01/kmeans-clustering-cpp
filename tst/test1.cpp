@@ -46,12 +46,14 @@ TEST(test_kmeans, test1) {
     oracle_kmeans.setClusters(centroid_ids, oracle_points);
 
     // run kmeans algorithm
+    // print "Running kmeans..." to stdout
+    std::cout << "Running kmeans..." << std::endl;
     kmeans.run(points);
     oracle_kmeans.run(oracle_points);
 
     // get centroids from both kmeans objects
-    std::vector<vector<double>> centroids = kmeans.getCentroids();
-    std::vector<vector<double>> oracle_centroids = oracle_kmeans.getCentroids();
+    std::vector<std::vector<double>> centroids = kmeans.getCentroids();
+    std::vector<std::vector<double>> oracle_centroids = oracle_kmeans.getCentroids();
 
     // get labels from both kmeans objects
     std::vector<int> labels = kmeans.getLabels(points);

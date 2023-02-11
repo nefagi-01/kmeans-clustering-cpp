@@ -1,7 +1,5 @@
 #include <vector> // #include directive
 #include <string> // #include directive
-using namespace std; // using directive
-
 
 // my_class.h
 #ifndef KMEANS_H // include guard
@@ -13,12 +11,12 @@ namespace kmeans
     private:
         int pointId, clusterId;
         int dimensions;
-        vector<double> values;
+        std::vector<double> values;
 
-        vector<double> lineToVec(string &line);
+        std::vector<double> lineToVec(std::string &line);
 
     public:
-        Point(int id, string line);
+        Point(int id, std::string line);
 
         int getDimensions();
 
@@ -35,8 +33,8 @@ namespace kmeans
     {
     private:
         int clusterId;
-        vector<double> centroid;
-        vector<Point> points;
+        std::vector<double> centroid;
+        std::vector<Point> points;
     public:
         Cluster(int clusterId, Point centroid);
 
@@ -61,29 +59,30 @@ namespace kmeans
     {
     private:
         int K, iters, dimensions, total_points;
-        vector<Cluster> clusters;
-        string output_dir;
+        std::vector<Cluster> clusters;
+        std::string output_dir;
+        std::vector<int> indices;
 
         void clearClusters();
 
         int getNearestClusterId(Point point);
 
     public:
-        KMeans(int K, int iterations, string output_dir);
+        KMeans(int K, int iterations, std::string output_dir);
 
         KMeans(int K, int iterations);
 
-        void Assignment(vector<Point> &all_points, bool &done);
+        void Assignment(std::vector<Point> &all_points, bool &done);
 
         void Update();
 
-        void setClusters(vector<int> indices, vector<Point> &all_points);
+        void setClusters(std::vector<int> indices, std::vector<Point> &all_points);
 
-        vector<int> getLabels(vector<Point> &all_points);
+        std::vector<int> getLabels(std::vector<Point> &all_points);
 
-        vector<vector<double>> getCentroids();
+        std::vector<std::vector<double>> getCentroids();
 
-        void run(vector<Point> &all_points);
+        void run(std::vector<Point> &all_points);
     };
 
 }

@@ -4,405 +4,331 @@
 #include <fstream>
 #include <iostream>
 #include <vector>
-#include <string>     // std::string, std::stod
+#include <string> 
+#include "oracle.h"
 
+using std::vector; // using directive
+using std::string; // using directive
+using std::cout; // using directive
+using std::endl; // using directive
+using std::ofstream; // using directive
+using std::to_string; // using directive
 
-using namespace std;
+using namespace oracle;
 
-class Point
+vector<double> Point::lineToVec(string &line)
 {
-private:
-    int pointId, clusterId;
-    int dimensions;
     vector<double> values;
+    string tmp = "";
 
-    vector<double> lineToVec(string &line)
+    for (int i = 0; i < (int)line.length(); i++)
     {
-        vector<double> values;
-        string tmp = "";
-
-        for (int i = 0; i < (int)line.length(); i++)
+        if ((48 <= int(line[i]) && int(line[i])  <= 57) || line[i] == '.' || line[i] == '+' || line[i] == '-' || line[i] == 'e')
         {
-            if ((48 <= int(line[i]) && int(line[i])  <= 57) || line[i] == '.' || line[i] == '+' || line[i] == '-' || line[i] == 'e')
-            {
-                tmp += line[i];
-            }
-            else if (tmp.length() > 0)
-            {
-
-                values.push_back(stod(tmp));
-                tmp = "";
-            }
+            tmp += line[i];
         }
-        if (tmp.length() > 0)
+        else if (tmp.length() > 0)
         {
+
             values.push_back(stod(tmp));
             tmp = "";
         }
-
-        return values;
     }
-
-public:
-    Point(int id, string line)
+    if (tmp.length() > 0)
     {
-        pointId = id;
-        values = lineToVec(line);
-        dimensions = values.size();
-        clusterId = 0; // Initially not assigned to any cluster
+        values.push_back(stod(tmp));
+        tmp = "";
     }
 
-    int getDimensions() { return dimensions; }
+    return values;
+}
 
-    int getCluster() { return clusterId; }
-
-    int getID() { return pointId; }
-
-    void setCluster(int val) { clusterId = val; }
-
-    double getVal(int pos) { return values[pos]; }
-};
-
-class Cluster
+Point::Point(int id, string line)
 {
-private:
-    int clusterId;
-    vector<double> centroid;
-    vector<Point> points;
+    pointId = id;
+    values = lineToVec(line);
+    dimensions = values.size();
+    clusterId = 0; // Initially not assigned to any cluster
+}
 
-public:
-    Cluster(int clusterId, Point centroid)
+int Point::getDimensions() { return dimensions; }
+
+int Point::getCluster() { return clusterId; }
+
+int Point::getID() { return pointId; }
+
+void Point::setCluster(int val) { clusterId = val; }
+
+double Point::getVal(int pos) { return values[pos]; }
+
+
+Cluster::Cluster(int clusterId, Point centroid)
+{
+    this->clusterId = clusterId;
+    for (int i = 0; i < centroid.getDimensions(); i++)
     {
-        this->clusterId = clusterId;
-        for (int i = 0; i < centroid.getDimensions(); i++)
+        this->centroid.push_back(centroid.getVal(i));
+    }
+    this->addPoint(centroid);
+}
+
+void Cluster::addPoint(Point p)
+{
+    p.setCluster(this->clusterId);
+    points.push_back(p);
+}
+
+bool Cluster::removePoint(int pointId)
+{
+    int size = points.size();
+
+    for (int i = 0; i < size; i++)
+    {
+        if (points[i].getID() == pointId)
         {
-            this->centroid.push_back(centroid.getVal(i));
+            points.erase(points.begin() + i);
+            return true;
         }
-        this->addPoint(centroid);
     }
+    return false;
+}
 
-    void addPoint(Point p)
+void Cluster::removeAllPoints() { points.clear(); }
+
+int Cluster::getId() { return clusterId; }
+
+Point Cluster::getPoint(int pos) { return points[pos]; }
+
+int Cluster::getSize() { return points.size(); }
+
+double Cluster::getCentroidByPos(int pos) { return centroid[pos]; }
+
+void Cluster::setCentroidByPos(int pos, double val) { this->centroid[pos] = val; }
+
+void KMeans::clearClusters()
+{
+    for (int i = 0; i < K; i++)
     {
-        p.setCluster(this->clusterId);
-        points.push_back(p);
+        clusters[i].removeAllPoints();
     }
+}
 
-    bool removePoint(int pointId)
+int KMeans::getNearestClusterId(Point point)
+{
+    double sum = 0.0, min_dist;
+    int NearestClusterId;
+    if(dimensions==1) {
+        min_dist = abs(clusters[0].getCentroidByPos(0) - point.getVal(0));
+    }	
+    else 
     {
-        int size = points.size();
-
-        for (int i = 0; i < size; i++)
+        for (int i = 0; i < dimensions; i++)
         {
-            if (points[i].getID() == pointId)
+            sum += pow(clusters[0].getCentroidByPos(i) - point.getVal(i), 2.0);
+            // sum += abs(clusters[0].getCentroidByPos(i) - point.getVal(i));
+        }
+        min_dist = sqrt(sum);
+    }
+    NearestClusterId = clusters[0].getId();
+
+    for (int i = 1; i < K; i++)
+    {
+        double dist;
+        sum = 0.0;
+        
+        if(dimensions==1) {
+                dist = abs(clusters[i].getCentroidByPos(0) - point.getVal(0));
+        } 
+        else {
+            for (int j = 0; j < dimensions; j++)
             {
-                points.erase(points.begin() + i);
-                return true;
+                sum += pow(clusters[i].getCentroidByPos(j) - point.getVal(j), 2.0);
+                // sum += abs(clusters[i].getCentroidByPos(j) - point.getVal(j));
+            }
+
+            dist = sqrt(sum);
+            // dist = sum;
+        }
+        if (dist < min_dist)
+        {
+            min_dist = dist;
+            NearestClusterId = clusters[i].getId();
+        }
+    }
+
+    return NearestClusterId;
+}
+
+KMeans::KMeans(int K, int iterations, string output_dir)
+{
+    this->K = K;
+    this->iters = iterations;
+    this->output_dir = output_dir;
+}
+
+KMeans::KMeans(int K, int iterations)
+{
+    this->K = K;
+    this->iters = iterations;
+}
+
+void KMeans::setClusters(vector<int> indices, vector<Point> &all_points) { 
+    for(int i=0; i<indices.size(); i++) {
+        // set cluster id for the sampled point
+        all_points[indices[i]].setCluster(i);
+        // create a cluster with the sampled point
+        Cluster cluster(i, all_points[indices[i]]);
+        // add the cluster to the list of clusters
+        clusters.push_back(cluster);
+    }
+}
+
+vector<int> KMeans::getLabels(vector<Point> &all_points) {
+    vector<int> labels;
+    for(int i=0; i<all_points.size(); i++) {
+        labels.push_back(all_points[i].getCluster());
+    }
+    return labels;
+}
+
+vector<vector<double>> KMeans::getCentroids() {
+    vector<vector<double>> centroids;
+    for(int i=0; i<clusters.size(); i++) {
+        vector<double> centroid;
+        for(int j=0; j<dimensions; j++) {
+            centroid.push_back(clusters[i].getCentroidByPos(j));
+        }
+        centroids.push_back(centroid);
+    }
+    return centroids;
+}
+
+
+
+void KMeans::run(vector<Point> &all_points)
+{
+    total_points = all_points.size();
+    dimensions = all_points[0].getDimensions();
+
+    if (indices.empty())
+    {
+        // Initializing Clusters
+        vector<int> used_pointIds;
+
+        for (int i = 1; i <= K; i++)
+        {
+            while (true)
+            {
+                int index = rand() % total_points;
+
+                if (find(used_pointIds.begin(), used_pointIds.end(), index) ==
+                    used_pointIds.end())
+                {
+                    used_pointIds.push_back(index);
+                    all_points[index].setCluster(i);
+                    Cluster cluster(i, all_points[index]);
+                    clusters.push_back(cluster);
+                    break;
+                }
             }
         }
-        return false;
+        cout << "Clusters initialized = " << clusters.size() << endl
+            << endl;
     }
 
-    void removeAllPoints() { points.clear(); }
 
-    int getId() { return clusterId; }
+    cout << "Running K-Means Clustering.." << endl;
 
-    Point getPoint(int pos) { return points[pos]; }
+    int iter = 1;
+    while (true)
+    {
+        cout << "Iter - " << iter << "/" << iters << endl;
+        bool done = true;
 
-    int getSize() { return points.size(); }
+        // Add all points to their nearest cluster
+        #pragma omp parallel for reduction(&&: done) num_threads(16)
+        for (int i = 0; i < total_points; i++)
+        {
+            int currentClusterId = all_points[i].getCluster();
+            int nearestClusterId = getNearestClusterId(all_points[i]);
 
-    double getCentroidByPos(int pos) { return centroid[pos]; }
+            if (currentClusterId != nearestClusterId)
+            {
+                all_points[i].setCluster(nearestClusterId);
+                done = false;
+            }
+        }
 
-    void setCentroidByPos(int pos, double val) { this->centroid[pos] = val; }
-};
+        // clear all existing clusters
+        clearClusters();
 
-class KMeans
-{
-private:
-    int K, iters, dimensions, total_points;
-    vector<int> indices;
-    vector<Cluster> clusters;
-    string output_dir;
+        // reassign points to their new clusters
+        for (int i = 0; i < total_points; i++)
+        {
+            // cluster index is ID-1
+            clusters[all_points[i].getCluster() - 1].addPoint(all_points[i]);
+        }
 
-    void clearClusters()
+        // Recalculating the center of each cluster
+        for (int i = 0; i < K; i++)
+        {
+            int ClusterSize = clusters[i].getSize();
+
+            for (int j = 0; j < dimensions; j++)
+            {
+                double sum = 0.0;
+                if (ClusterSize > 0)
+                {
+                    #pragma omp parallel for reduction(+: sum) num_threads(16)
+                    for (int p = 0; p < ClusterSize; p++)
+                    {
+                        sum += clusters[i].getPoint(p).getVal(j);
+                    }
+                    clusters[i].setCentroidByPos(j, sum / ClusterSize);
+                }
+            }
+        }
+
+        if (done || iter >= iters)
+        {
+            cout << "Clustering completed in iteration : " << iter << endl
+                    << endl;
+            break;
+        }
+        iter++;
+    }
+
+    ofstream pointsFile;
+    pointsFile.open(output_dir + "/" + to_string(K) + "-points.txt", std::ios::out);
+
+    for (int i = 0; i < total_points; i++)
+    {
+        pointsFile << all_points[i].getCluster() << endl;
+    }
+
+    pointsFile.close();
+
+    // Write cluster centers to file
+    ofstream outfile;
+    outfile.open(output_dir + "/" + to_string(K) + "-clusters.txt");
+    if (outfile.is_open())
     {
         for (int i = 0; i < K; i++)
         {
-            clusters[i].removeAllPoints();
-        }
-    }
-
-    int getNearestClusterId(Point point)
-    {
-        double sum = 0.0, min_dist;
-        int NearestClusterId;
-        if(dimensions==1) {
-            min_dist = abs(clusters[0].getCentroidByPos(0) - point.getVal(0));
-        }	
-        else 
-        {
-          for (int i = 0; i < dimensions; i++)
-          {
-             sum += pow(clusters[0].getCentroidByPos(i) - point.getVal(i), 2.0);
-             // sum += abs(clusters[0].getCentroidByPos(i) - point.getVal(i));
-          }
-          min_dist = sqrt(sum);
-        }
-        NearestClusterId = clusters[0].getId();
-
-        for (int i = 1; i < K; i++)
-        {
-            double dist;
-            sum = 0.0;
-            
-            if(dimensions==1) {
-                  dist = abs(clusters[i].getCentroidByPos(0) - point.getVal(0));
-            } 
-            else {
-              for (int j = 0; j < dimensions; j++)
-              {
-                  sum += pow(clusters[i].getCentroidByPos(j) - point.getVal(j), 2.0);
-                  // sum += abs(clusters[i].getCentroidByPos(j) - point.getVal(j));
-              }
-
-              dist = sqrt(sum);
-              // dist = sum;
-            }
-            if (dist < min_dist)
+            cout << "Cluster " << clusters[i].getId() << " centroid : ";
+            for (int j = 0; j < dimensions; j++)
             {
-                min_dist = dist;
-                NearestClusterId = clusters[i].getId();
+                cout << clusters[i].getCentroidByPos(j) << " ";    // Output to console
+                outfile << clusters[i].getCentroidByPos(j) << " "; // Output to file
             }
+            cout << endl;
+            outfile << endl;
         }
-
-        return NearestClusterId;
+        outfile.close();
     }
-
-public:
-    KMeans(int K, int iterations, string output_dir)
+    else
     {
-        this->K = K;
-        this->iters = iterations;
-        this->output_dir = output_dir;
+        cout << "Error: Unable to write to clusters.txt";
     }
-
-    KMeans(int K, int iterations)
-    {
-        this->K = K;
-        this->iters = iterations;
-    }
-
-    void setClusters(vector<int> indices, vector<Point> &all_points) { 
-        for(int i=0; i<indices.size(); i++) {
-            // set cluster id for the sampled point
-            all_points[indices[i]].setCluster(i);
-            // create a cluster with the sampled point
-            Cluster cluster(i, all_points[indices[i]]);
-            // add the cluster to the list of clusters
-            clusters.push_back(cluster);
-        }
-    }
-
-    vector<int> getLabels(vector<Point> &all_points) {
-        vector<int> labels;
-        for(int i=0; i<all_points.size(); i++) {
-            labels.push_back(all_points[i].getCluster());
-        }
-        return labels;
-    }
-
-    vector<vector<double>> getCentroids() {
-        vector<vector<double>> centroids;
-        for(int i=0; i<clusters.size(); i++) {
-            vector<double> centroid;
-            for(int j=0; j<dimensions; j++) {
-                centroid.push_back(clusters[i].getCentroidByPos(j));
-            }
-            centroids.push_back(centroid);
-        }
-        return centroids;
-    }
-
-
-
-    void run(vector<Point> &all_points)
-    {
-        total_points = all_points.size();
-        dimensions = all_points[0].getDimensions();
-
-        if (indices.empty())
-        {
-            // Initializing Clusters
-            vector<int> used_pointIds;
-
-            for (int i = 1; i <= K; i++)
-            {
-                while (true)
-                {
-                    int index = rand() % total_points;
-
-                    if (find(used_pointIds.begin(), used_pointIds.end(), index) ==
-                        used_pointIds.end())
-                    {
-                        used_pointIds.push_back(index);
-                        all_points[index].setCluster(i);
-                        Cluster cluster(i, all_points[index]);
-                        clusters.push_back(cluster);
-                        break;
-                    }
-                }
-            }
-            cout << "Clusters initialized = " << clusters.size() << endl
-                << endl;
-        }
-
-
-        cout << "Running K-Means Clustering.." << endl;
-
-        int iter = 1;
-        while (true)
-        {
-            cout << "Iter - " << iter << "/" << iters << endl;
-            bool done = true;
-
-            // Add all points to their nearest cluster
-            #pragma omp parallel for reduction(&&: done) num_threads(16)
-            for (int i = 0; i < total_points; i++)
-            {
-                int currentClusterId = all_points[i].getCluster();
-                int nearestClusterId = getNearestClusterId(all_points[i]);
-
-                if (currentClusterId != nearestClusterId)
-                {
-                    all_points[i].setCluster(nearestClusterId);
-                    done = false;
-                }
-            }
-
-            // clear all existing clusters
-            clearClusters();
-
-            // reassign points to their new clusters
-            for (int i = 0; i < total_points; i++)
-            {
-                // cluster index is ID-1
-                clusters[all_points[i].getCluster() - 1].addPoint(all_points[i]);
-            }
-
-            // Recalculating the center of each cluster
-            for (int i = 0; i < K; i++)
-            {
-                int ClusterSize = clusters[i].getSize();
-
-                for (int j = 0; j < dimensions; j++)
-                {
-                    double sum = 0.0;
-                    if (ClusterSize > 0)
-                    {
-                        #pragma omp parallel for reduction(+: sum) num_threads(16)
-                        for (int p = 0; p < ClusterSize; p++)
-                        {
-                            sum += clusters[i].getPoint(p).getVal(j);
-                        }
-                        clusters[i].setCentroidByPos(j, sum / ClusterSize);
-                    }
-                }
-            }
-
-            if (done || iter >= iters)
-            {
-                cout << "Clustering completed in iteration : " << iter << endl
-                     << endl;
-                break;
-            }
-            iter++;
-        }
-
-        ofstream pointsFile;
-        pointsFile.open(output_dir + "/" + to_string(K) + "-points.txt", ios::out);
-
-        for (int i = 0; i < total_points; i++)
-        {
-            pointsFile << all_points[i].getCluster() << endl;
-        }
-
-        pointsFile.close();
-
-        // Write cluster centers to file
-        ofstream outfile;
-        outfile.open(output_dir + "/" + to_string(K) + "-clusters.txt");
-        if (outfile.is_open())
-        {
-            for (int i = 0; i < K; i++)
-            {
-                cout << "Cluster " << clusters[i].getId() << " centroid : ";
-                for (int j = 0; j < dimensions; j++)
-                {
-                    cout << clusters[i].getCentroidByPos(j) << " ";    // Output to console
-                    outfile << clusters[i].getCentroidByPos(j) << " "; // Output to file
-                }
-                cout << endl;
-                outfile << endl;
-            }
-            outfile.close();
-        }
-        else
-        {
-            cout << "Error: Unable to write to clusters.txt";
-        }
-    }
-};
-
-{
-    // Need 3 arguments (except filename) to run, else exit
-    if (argc != 4)
-    {
-        cout << "Error: command-line argument count mismatch. \n ./kmeans <INPUT> <K> <OUT-DIR>" << endl;
-        return 1;
-    }
-
-    string output_dir = argv[3];
-
-    // Fetching number of clusters
-    int K = atoi(argv[2]);
-
-    // Open file for fetching points
-    string filename = argv[1];
-    ifstream infile(filename.c_str());
-
-    if (!infile.is_open())
-    {
-        cout << "Error: Failed to open file." << endl;
-        return 1;
-    }
-
-    // Fetching points from file
-    int pointId = 1;
-    vector<Point> all_points;
-    string line;
-
-    while (getline(infile, line))
-    {
-        Point point(pointId, line);
-        all_points.push_back(point);
-        pointId++;
-    }
-    
-    infile.close();
-    cout << "\nData fetched successfully!" << endl
-         << endl;
-
-    // Return if number of clusters > number of points
-    if ((int)all_points.size() < K)
-    {
-        cout << "Error: Number of clusters greater than number of points." << endl;
-        return 1;
-    }
-
-    // Running K-Means Clustering
-    int iters = 100;
-
-    KMeans kmeans(K, iters, output_dir);
-    kmeans.run(all_points);
-
-    return 0;
 }
+
